@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard — ConnectRoom</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0c0c18;color:#e2e0f0;min-height:100vh;display:flex;flex-direction:column}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:58px;background:#11111d;border-bottom:1px solid rgba(255,255,255,.07);position:sticky;top:0;z-index:10}
+.logo{font-size:1.2rem;font-weight:800}.logo span{color:#818cf8}
+.nav-r{display:flex;align-items:center;gap:1rem;color:#6b6880;font-size:.88rem}
+.btn-ghost{background:none;border:1px solid rgba(255,255,255,.1);color:#6b6880;padding:.4rem 1rem;border-radius:50px;font-size:.82rem;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-ghost:hover{border-color:#e2e0f0;color:#e2e0f0}
+main{max-width:860px;margin:0 auto;padding:3rem 2rem;width:100%}
+h1{font-size:2rem;font-weight:800;margin-bottom:.3rem}
+h1 span{color:#818cf8}
+.sub{color:#6b6880;margin-bottom:2.5rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:2.5rem}
+.card{background:#11111d;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:1.8rem;display:flex;flex-direction:column;gap:.9rem;transition:all .25s}
+.card:hover{border-color:rgba(79,70,229,.4);transform:translateY(-2px)}
+.card-icon{font-size:2rem}
+.card h3{font-size:1.1rem;font-weight:700}
+.card p{color:#6b6880;font-size:.88rem;line-height:1.6}
+input{background:#181826;border:1px solid rgba(255,255,255,.07);color:#e2e0f0;border-radius:8px;padding:.7rem 1rem;font-size:.9rem;width:100%;outline:none;font-family:inherit;transition:border .2s}
+input:focus{border-color:#4f46e5}
+.btn-p{background:#4f46e5;border:none;color:#fff;padding:.75rem;border-radius:8px;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;box-shadow:0 4px 16px rgba(79,70,229,.3)}
+.btn-p:hover{background:#6366f1;transform:translateY(-1px)}
+.btn-o{background:none;border:1px solid rgba(255,255,255,.1);color:#e2e0f0;padding:.75rem;border-radius:8px;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-o:hover{border-color:#4f46e5;color:#818cf8}
+.feats{display:flex;flex-wrap:wrap;gap:.7rem}
+.feat{background:#11111d;border:1px solid rgba(255,255,255,.07);border-radius:50px;display:flex;align-items:center;gap:.5rem;padding:.45rem 1rem;font-size:.82rem;color:#6b6880}
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(12px);background:#11111d;border:1px solid rgba(255,255,255,.1);padding:.6rem 1.5rem;border-radius:50px;font-size:.85rem;opacity:0;transition:all .25s;z-index:999;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:rgba(239,68,68,.5);color:#f87171}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+  <span class="logo">Connect<span>Room</span></span>
+  <div class="nav-r">
+    <span id="uname"></span>
+    <button class="btn-ghost" onclick="doLogout()">Logout</button>
+  </div>
+</nav>
+<main>
+  <h1>Welcome, <span id="udisp">...</span> 👋</h1>
+  <p class="sub">Create a new room or enter a code to join an existing one.</p>
+  <div class="grid">
+    <div class="card">
+      <div class="card-icon">🎥</div>
+      <h3>Create Room</h3>
+      <p>Start your own conference. A 6-character room code is generated — share it with others.</p>
+      <input id="rname" placeholder="Room name (optional)" maxlength="50"/>
+      <button class="btn-p" onclick="createRoom()">Create Room</button>
+    </div>
+    <div class="card">
+      <div class="card-icon">🚪</div>
+      <h3>Join Room</h3>
+      <p>Enter the 6-character code you received to join an existing conference.</p>
+      <input id="rcode" placeholder="Room code (e.g. AB3C7X)" maxlength="6" style="text-transform:uppercase"/>
+      <button class="btn-o" onclick="joinRoom()">Join Room</button>
+    </div>
+  </div>
+  <div class="feats">
+    <div class="feat">🎥 Video Calls</div>
+    <div class="feat">🖥️ Screen Share</div>
+    <div class="feat">🔒 Encrypted Chat</div>
+    <div class="feat">🎨 Whiteboard</div>
+    <div class="feat">📁 File Sharing</div>
+    <div class="feat">⚡ Real-Time</div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+async function init(){
+  const r=await fetch('/api/me');
+  if(!r.ok){location.href='/';return;}
+  const {user}=await r.json();
+  if(!user){location.href='/';return;}
+  document.getElementById('uname').textContent=user.displayName;
+  document.getElementById('udisp').textContent=user.displayName.split(' ')[0];
+}
+async function createRoom(){
+  const name=document.getElementById('rname').value.trim();
+  const r=await fetch('/api/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  const d=await r.json();
+  if(!r.ok){toast(d.error,true);return;}
+  location.href='/room/'+d.room.id;
+}
+async function joinRoom(){
+  const code=document.getElementById('rcode').value.trim().toUpperCase();
+  if(code.length<4){toast('Enter a valid room code',true);return;}
+  const r=await fetch('/api/rooms/'+code);
+  if(!r.ok){toast('Room not found. Check the code.',true);return;}
+  location.href='/room/'+code;
+}
+async function doLogout(){
+  await fetch('/api/logout',{method:'POST'});
+  location.href='/';
+}
+function toast(msg,isErr=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show'+(isErr?' err':'');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',3500);
+}
+document.getElementById('rcode').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+document.getElementById('rname').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
+init();
+</script>
+</body>
+</html>
